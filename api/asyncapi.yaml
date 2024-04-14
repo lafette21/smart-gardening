@@ -8,7 +8,7 @@ info:
     url: https://unlicense.org/
 servers:
   firebase:
-    host: todo
+    host: test.europe-west1.firebasedatabase.app
     protocol: https
   mosquitto:
     host: test.mosquitto.org
@@ -17,126 +17,339 @@ channels:
   polytunnels:
     servers:
       - $ref: '#/servers/firebase'
-    address: polytunnels
+    address: /polytunnels
     messages:
-      PolytunnelDTO:
-        $ref: '#/components/messages/PolytunnelDTO'
-      PolytunnelStatusDTO:
-        $ref: '#/components/messages/PolytunnelStatusDTO'
-  polytunnelsWithId:
-    address: polytunnels/{id}
+      PolytunnelList:
+        $ref: '#/components/messages/PolytunnelList'
+  polytunnelsCreate:
+    servers:
+      - $ref: '#/servers/firebase'
+    address: /polytunnels/create
+    messages:
+      PolytunnelNeeds:
+        $ref: '#/components/messages/PolytunnelNeeds'
+  polytunnelsInfoFB:
+    servers:
+      - $ref: '#/servers/firebase'
+    address: /polytunnels/{id}/info
     parameters:
       id:
         description: The ID of the polytunnel.
-operations:
-  onPolytunnelCreate:
-    action: receive
-    channel:
-      $ref: '#/channels/polytunnels'
     messages:
-      - $ref: '#/channels/polytunnels/messages/PolytunnelDTO'
-  onPolytunnelCreated:
+      PolytunnelInfoFB:
+        $ref: '#/components/messages/PolytunnelInfoFB'
+  polytunnelsInfoMQTT:
+    servers:
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/info
+    parameters:
+      id:
+        description: The ID of the polytunnel.
+    messages:
+      PolytunnelInfoMQTT:
+        $ref: '#/components/messages/PolytunnelInfoMQTT'
+  polytunnelsIntervene:
+    servers:
+      - $ref: '#/servers/firebase'
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/intervene
+    parameters:
+      id:
+        description: The ID of the polytunnel.
+    messages:
+      Intervention:
+        $ref: '#/components/messages/Intervention'
+  environmentInfo:
+    servers:
+      - $ref: '#/servers/firebase'
+      - $ref: '#/servers/mosquitto'
+    address: /environment/info
+    messages:
+      EnvironmentInfo:
+        $ref: '#/components/messages/EnvironmentInfo'
+operations:
+  sendPolytunnelList:
     action: send
     channel:
       $ref: '#/channels/polytunnels'
     messages:
-      - $ref: '#/channels/polytunnels/messages/PolytunnelStatusDTO'
+      - $ref: '#/channels/polytunnels/messages/PolytunnelList'
+  onPolytunnelList:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnels'
+    messages:
+      - $ref: '#/channels/polytunnels/messages/PolytunnelList'
+  sendPolytunnelCreationReq:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsCreate'
+    messages:
+      - $ref: '#/channels/polytunnelsCreate/messages/PolytunnelNeeds'
+  onPolytunnelCreationReq:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsCreate'
+    messages:
+      - $ref: '#/channels/polytunnelsCreate/messages/PolytunnelNeeds'
+  sendPolytunnelInfoFB:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoFB'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoFB/messages/PolytunnelInfoFB'
+  onPolytunnelInfoFB:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoFB'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoFB/messages/PolytunnelInfoFB'
+  sendPolytunnelInfoMQTT:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoMQTT'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoMQTT/messages/PolytunnelInfoMQTT'
+  onPolytunnelInfoMQTT:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoMQTT'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoMQTT/messages/PolytunnelInfoMQTT'
+  sendIntervention:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsIntervene'
+    messages:
+      - $ref: '#/channels/polytunnelsIntervene/messages/Intervention'
+  onIntervention:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsIntervene'
+    messages:
+      - $ref: '#/channels/polytunnelsIntervene/messages/Intervention'
+  sendEnvironmentInfo:
+    action: send
+    channel:
+      $ref: '#/channels/environmentInfo'
+    messages:
+      - $ref: '#/channels/environmentInfo/messages/EnvironmentInfo'
+  onEnvironmentInfo:
+    action: receive
+    channel:
+      $ref: '#/channels/environmentInfo'
+    messages:
+      - $ref: '#/channels/environmentInfo/messages/EnvironmentInfo'
 components:
   messages:
-    PolytunnelDTO:
+    PolytunnelNeeds:
       payload:
         type: object
         required:
-          - id
-          - operation
+          - crop
         properties:
-          id:
-            type: string
-            format: uuid
-            description: The ID of the polytunnel.
-          operation:
-            type: string
-            description: The operation to do with the polytunnel.
-            "enum": [
-              "create",
-              "update",
-              "delete"
-            ]
+          crop:
+            $ref: '#/components/schemas/CropRange'
+    PolytunnelInfoFB:
+      payload:
+        type: object
+        required:
+          - crop
+          - devices
+        properties:
           crop:
             $ref: '#/components/schemas/Crop'
-    PolytunnelStatusDTO:
+          devices:
+            $ref: '#/components/schemas/Devices'
+    PolytunnelInfoMQTT:
       payload:
         type: object
         required:
-          - id
-          - status
+          - crop
+          - devices
         properties:
-          id:
+          crop:
+            $ref: '#/components/schemas/CropValue'
+          devices:
+            $ref: '#/components/schemas/Devices'
+    PolytunnelList:
+      payload:
+        type: array
+        items:
+          type: string
+          format: uuid
+    Intervention:
+      payload:
+        type: object
+        required:
+          - device
+          - action
+        properties:
+          device:
             type: string
-            format: uuid
-            description: The ID of the polytunnel.
-          status:
-            type: string
-            description: The status of the polytunnel.
-            "enum": [
-              "created",
-              "updated",
-              "deleted"
+            enum: [
+              "heater",
+              "lamp",
+              "sprinkler"
             ]
+          action:
+            type: string
+            enum: [
+              "turn_on",
+              "turn_off"
+            ]
+    EnvironmentInfo:
+      payload:
+        type: object
+        required:
+          - temperature
+          - brightness
+        properties:
+          temperature:
+            type: number
+            format: float
+            description: The temperature of the environment.
+          brightness:
+            type: number
+            format: float
+            description: The brightness of the environment.
+            minimum: 0
+            maximum: 1
   schemas:
     Crop:
       type: object
       required:
         - name
-        - needs
+        - attributes
       properties:
         name:
           type: string
           description: The name of the crop.
-        needs:
-          $ref: '#/components/schemas/Needs'
-    Needs:
+        attributes:
+          type: object
+          required:
+            - soilMoisture
+            - temperature
+            - humidity
+            - brightness
+          properties:
+            soilMoisture:
+              $ref: '#/components/schemas/RangeStatusValue'
+            temperature:
+              $ref: '#/components/schemas/RangeStatusValue'
+            humidity:
+              $ref: '#/components/schemas/RangeStatusValue'
+            brightness:
+              $ref: '#/components/schemas/RangeStatusValue'
+    CropRange:
       type: object
       required:
-        - soilMoisture
-        - temperature
-        - humidity
-        - light
+        - name
+        - attributes
       properties:
-        soilMoisture:
-          $ref: '#/components/schemas/Range'
-        temperature:
-          $ref: '#/components/schemas/Range'
-        humidity:
-          $ref: '#/components/schemas/Range'
-        light:
-          $ref: '#/components/schemas/Range'
+        name:
+          type: string
+          description: The name of the crop.
+        attributes:
+          type: object
+          required:
+            - soilMoisture
+            - temperature
+            - humidity
+            - brightness
+          properties:
+            soilMoisture:
+              $ref: '#/components/schemas/Range'
+            temperature:
+              $ref: '#/components/schemas/Range'
+            humidity:
+              $ref: '#/components/schemas/Range'
+            brightness:
+              $ref: '#/components/schemas/Range'
+    CropValue:
+      type: object
+      required:
+        - name
+        - attributes
+      properties:
+        name:
+          type: string
+          description: The name of the crop.
+        attributes:
+          type: object
+          required:
+            - soilMoisture
+            - temperature
+            - humidity
+            - brightness
+          properties:
+            soilMoisture:
+              $ref: '#/components/schemas/Value'
+            temperature:
+              $ref: '#/components/schemas/Value'
+            humidity:
+              $ref: '#/components/schemas/Value'
+            brightness:
+              $ref: '#/components/schemas/Value'
     Range:
       type: object
       required:
-        - min
-        - max
+        - range
       properties:
-        min:
+        range:
+          type: object
+          required:
+            - min
+            - max
+          properties:
+            min:
+              type: number
+              format: float
+            max:
+              type: number
+              format: float
+    Status:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [
+            "Normal",
+            "Critical"
+          ]
+    Value:
+      type: object
+      required:
+        - value
+      properties:
+        value:
           type: number
           format: float
-        max:
-          type: number
-          format: float
-
-# ui
-  # send create (FB)					/controller
-  # receive availPolytunnels (FB)				/polytunnels
-  # receive temp/humidity/soilMoisture/heater/lamp (FB)	/polytunnels/<UUID>/info
-# controller
-  # receive create (FB)					/controller
-  # send availPolytunnels (FB)				/polytunnels
-  # send temp/light (MQTT)				/environment/info
-  # receive temp/humidity/soilMoisture/heater/lamp (MQTT)	/polytunnels/<UUID>/info
-  # send temp/humidity/soilMoisture/heater/lamp (FB)	/polytunnels/<UUID>/info
-# polytunnel
-  # receive temp/light (MQTT)				/environment/info
-  # send temp/humidity/soilMoisture/heater/lamp (MQTT)	/polytunnels/<UUID>/info
-
-
-# ui <FB> controller <MQTT> polytunnel
+    RangeStatusValue:
+      type: object
+      required:
+        - range
+        - status
+        - value
+      properties:
+        range:
+          $ref: '#/components/schemas/Range/properties/range'
+        status:
+          $ref: '#/components/schemas/Status/properties/status'
+        value:
+          $ref: '#/components/schemas/Value/properties/value'
+    Devices:
+      type: object
+      required:
+        - heater
+        - lamp
+        - sprinkler
+      properties:
+        heater:
+          type: boolean
+        lamp:
+          type: boolean
+        sprinkler:
+          type: boolean
