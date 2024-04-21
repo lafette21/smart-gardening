@@ -14,10 +14,10 @@ servers:
     host: test.mosquitto.org
     protocol: mqtt
 channels:
-  polytunnels:
+  polytunnelsList:
     servers:
       - $ref: '#/servers/firebase'
-    address: /polytunnels
+    address: /polytunnels/list
     messages:
       PolytunnelList:
         $ref: '#/components/messages/PolytunnelList'
@@ -71,15 +71,15 @@ operations:
   sendPolytunnelList:
     action: send
     channel:
-      $ref: '#/channels/polytunnels'
+      $ref: '#/channels/polytunnelsList'
     messages:
-      - $ref: '#/channels/polytunnels/messages/PolytunnelList'
+      - $ref: '#/channels/polytunnelsList/messages/PolytunnelList'
   onPolytunnelList:
     action: receive
     channel:
-      $ref: '#/channels/polytunnels'
+      $ref: '#/channels/polytunnelsList'
     messages:
-      - $ref: '#/channels/polytunnels/messages/PolytunnelList'
+      - $ref: '#/channels/polytunnelsList/messages/PolytunnelList'
   sendPolytunnelCreationReq:
     action: send
     channel:
