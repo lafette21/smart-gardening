@@ -44,6 +44,13 @@ channels:
     messages:
       PolytunnelCreationReq:
         $ref: '#/components/messages/PolytunnelCreationReq'
+  polytunnelsDelete:
+    servers:
+      - $ref: '#/servers/firebase'
+    address: /polytunnels/delete
+    messages:
+      PolytunnelDeletionReq:
+        $ref: '#/components/messages/PolytunnelDeletionReq'
   polytunnelsInfoCropAttribLightFB:
     servers:
       - $ref: '#/servers/firebase'
@@ -197,6 +204,18 @@ operations:
       $ref: '#/channels/polytunnelsCreate'
     messages:
       - $ref: '#/channels/polytunnelsCreate/messages/PolytunnelCreationReq'
+  sendPolytunnelDeletionReq:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsDelete'
+    messages:
+      - $ref: '#/channels/polytunnelsDelete/messages/PolytunnelDeletionReq'
+  onPolytunnelDeletionReq:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsDelete'
+    messages:
+      - $ref: '#/channels/polytunnelsDelete/messages/PolytunnelDeletionReq'
   sendPolytunnelsInfoCropAttribLightFB:
     action: send
     channel:
@@ -385,6 +404,10 @@ components:
         properties:
           crop:
             $ref: '#/components/schemas/CropNeeds'
+    PolytunnelDeletionReq:
+      payload:
+        type: string
+        format: uuid
     PolytunnelList:
       payload:
         type: array
@@ -414,11 +437,9 @@ components:
         type: number
         format: float
     PolytunnelsInfoDevice:
-      payload:
-        type: boolean
+      name: PolytunnelsInfoDevice
     PolytunnelsInterventionDevice:
-      payload:
-        type: boolean
+      name: PolytunnelsInterventionDevice
   schemas:
     CropNeeds:
       type: object
