@@ -10,7 +10,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include "./measure_simulation.h"
 
 // Mosquitto
 #define MQTT_HOSTNAME "localhost"
@@ -19,7 +18,15 @@
 #define MQTT_TOPIC "hello"
 
 #define TIME_BETWEEN_MEASUREMENTS 2 // sec
-#define ID_CHARACTER_LENGTH 5 // without terminating null
+#define ID_CHARACTER_LENGTH 36 // without terminating null
+
+#define TEST_MODE false
+
+#if TEST_MODE
+	#include "./measure_simulation_test.h"
+#else
+	#include "./measure_simulation.h"
+#endif
 
 struct callback_params {
 	float *humidity;
@@ -41,11 +48,19 @@ void send_message(char *topic_snd_part, char *payload);
 
 // measurements
 void send_measurements();
-void take_measurements(float *humidity, float *temperature, float* outer_temperature, float *soil_moisture, const bool *sprinler_on, 
-							const bool *heater_on, const bool *lamp_on, const float elapsed_seconds);
-void measure_humidity(float *humidity, const float *soil_moisture, const float *temperature, const bool *sprinkler_on, const float elapsed_seconds);
-void measure_soil_moisture(float *soil_moisture, const float *temperature, const bool *sprinkler_on, const float elapsed_seconds);
-void measure_temperature(float *temperature, const float *outer_temperature, const bool *heater_on, const bool *lamp_on, const float elapsed_seconds);
+void take_measurements(float *humidity, float *temperature, float outer_temperature, float *soil_moisture, const bool sprinkler_on, 
+							const bool heater_on, const bool lamp_on, const float elapsed_seconds);
+void measure_humidity(float *humidity, const float soil_moisture, const float temperature, const bool sprinkler_on, const float elapsed_seconds);
+void measure_soil_moisture(float *soil_moisture, const float temperature, const bool sprinkler_on, const float elapsed_seconds);
+void measure_temperature(float *temperature, const float outer_temperature, const bool heater_on, const bool lamp_on, const float elapsed_seconds);
+void adjust_humidity_sprinkler_is_on(float *humidity, const float temperature, const float elapsed_seconds);
+void adjust_humidity_sprinkler_is_off(float *humidity, const float soil_moisture, const float elapsed_seconds);
+void adjust_soil_moisture_sprinkler_on(float *soil_moisture, const float elapsed_seconds);
+void adjust_soil_moisture_sprinkler_off(float *soil_moisture, const float temperature, const float elapsed_seconds);
+void adjust_temperature_heater_on(float *temperature, const bool lamp_on, const float elapsed_seconds);
+void adjust_temperature_heater_off(float *temperature, const bool lamp_on, const float outer_temperature, const float elapsed_seconds);
+
+bool in_interval(const float base, const float value, const float threshold, const float elapsed_seconds, const bool max);
 
 // create shared memory ids
 unsigned int humidity_shared_mem_id = 0;
@@ -120,7 +135,7 @@ int main(int argc, char *argv[])
 
 			if (elapsed_seconds >= TIME_BETWEEN_MEASUREMENTS)
 			{
-				take_measurements(humidity, temperature, outer_temperature, soil_moisture, sprinkler_on, heater_on, lamp_on, elapsed_seconds);
+				take_measurements(humidity, temperature, *outer_temperature, soil_moisture, *sprinkler_on, *heater_on, *lamp_on, elapsed_seconds);
 				kill(child, SIGRTMAX);
 				last_update = clock();
 			}
@@ -211,7 +226,7 @@ void send_measurements()
 void send_message(char *topic_snd_part, char *payload)
 {
 	int mid_sent = 0;
-	char topic[60];
+	char topic[13 + ID_CHARACTER_LENGTH + strlen(topic_snd_part) + 1];
 	strcpy(topic, "/polytunnels/");
 	strcat(topic, poly_id);
 	strcat(topic, topic_snd_part);
@@ -250,11 +265,6 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
     }
     else if (strcmp(message->topic, "/env/info/temp") == 0)
     {
-		printf("halohalo\n");
-		printf("%s\n", (char*)message->payload);
-		printf("float: %6.3f\n", strtof((char*)message->payload, NULL));
-
-		printf("curr out_temp: %10.5f\n", *params->outer_temperature);
 		*params->outer_temperature = strtof((char*)message->payload, NULL);
     }
     fflush(stdout);
@@ -277,7 +287,9 @@ void connect_callback(struct mosquitto *mosq, void *userdata, int result)
 
 void subscribe_to_topic(char *topic_part, bool full_url)
 {
-	char topic[60];
+	const int topic_length = full_url ? strlen(topic_part) : 13 + ID_CHARACTER_LENGTH + strlen(topic_part);
+	char topic[topic_length];
+
 	if (full_url)
 	{
 		strcpy(topic, topic_part);
@@ -288,6 +300,7 @@ void subscribe_to_topic(char *topic_part, bool full_url)
 		strcat(topic, poly_id);
 		strcat(topic, topic_part);
 	}
+
     mosquitto_subscribe(mosq, NULL, topic, 2);
 }
 
@@ -303,14 +316,14 @@ void subscribe_callback(struct mosquitto *mosq, void *userdata, int mid, int qos
     printf("\n");
 }
 
-void take_measurements(float *humidity, float *temperature, float* outer_temperature, float *soil_moisture, const bool *sprinkler_on, 
-							const bool *heater_on, const bool *lamp_on, const float elapsed_seconds) 
+void take_measurements(float *humidity, float *temperature, const float outer_temperature, float *soil_moisture, const bool sprinkler_on, 
+							const bool heater_on, const bool lamp_on, const float elapsed_seconds) 
 {
 	printf("-------------------------------------------------------------------------------------------------\n");
 	printf("measuring\n");
 
-	measure_humidity(humidity, soil_moisture, temperature, sprinkler_on, elapsed_seconds);
-	measure_soil_moisture(soil_moisture, temperature, sprinkler_on, elapsed_seconds);
+	measure_humidity(humidity, *soil_moisture, *temperature, sprinkler_on, elapsed_seconds);
+	measure_soil_moisture(soil_moisture, *temperature, sprinkler_on, elapsed_seconds);
 	measure_temperature(temperature, outer_temperature, heater_on, lamp_on, elapsed_seconds);
 
 	printf("humidity: %5.2f\n", *humidity);
@@ -319,54 +332,141 @@ void take_measurements(float *humidity, float *temperature, float* outer_tempera
 	printf("measuring ended\n");
 }
 
-void measure_humidity(float *humidity, const float *soil_moisture, const float *temperature, const bool *sprinkler_on, const float elapsed_seconds)
+void measure_humidity(float *humidity, const float soil_moisture, const float temperature, const bool sprinkler_on, const float elapsed_seconds)
 {
-	if (*sprinkler_on && *humidity <= MAX_HUMIDITY && *temperature >= 30)
+	if (sprinkler_on) 
 	{
-		*humidity += 0.5 * elapsed_seconds;
+		adjust_humidity_sprinkler_is_on(humidity, temperature, elapsed_seconds);
 	}
-	else if (*sprinkler_on && *humidity <= MAX_HUMIDITY)
+	else
 	{
-		*humidity += 0.4 * elapsed_seconds;
-	}
-	else if (!*sprinkler_on && *soil_moisture > 50 && *humidity >= MIN_HUMIDITY)
-	{
-		*humidity -= 0.05 * elapsed_seconds;
-	}
-	else if (!*sprinkler_on && *soil_moisture <= 50 && *humidity >= MIN_HUMIDITY)
-	{
-		*humidity -= 0.1 * elapsed_seconds;
+		adjust_humidity_sprinkler_is_off(humidity, soil_moisture, elapsed_seconds);
 	}
 }
 
-void measure_soil_moisture(float *soil_moisture, const float *temperature, const bool *sprinkler_on, const float elapsed_seconds)
+void adjust_humidity_sprinkler_is_on(float *humidity, const float temperature, const float elapsed_seconds)
 {
-	if (*sprinkler_on && *soil_moisture <= MAX_SOIL_MOISTURE) 
+	if (temperature >= 30 && in_interval(*humidity, SPRINKLER_ON_AND_TEMP_GTE_30, MAX_HUMIDITY, elapsed_seconds, true))
 	{
-		*soil_moisture += 1 * elapsed_seconds;
+		*humidity += SPRINKLER_ON_AND_TEMP_GTE_30 * elapsed_seconds;	
 	}
-	else if (!*sprinkler_on && *temperature >= 30 && *soil_moisture >= MIN_SOIL_MOISTURE)
+	else if (in_interval(*humidity, SPRINKLER_ON_AND_TEMP_LT_30, MAX_HUMIDITY, elapsed_seconds, true))
 	{
-		*soil_moisture -= 0.15 * elapsed_seconds;
+		*humidity += SPRINKLER_ON_AND_TEMP_LT_30 * elapsed_seconds;
 	}
-	else if (!*sprinkler_on && *soil_moisture >= MIN_SOIL_MOISTURE)
+	else 
 	{
-		*soil_moisture -= 0.1 * elapsed_seconds;
+		*humidity = MAX_HUMIDITY;
 	}
 }
 
-void measure_temperature(float *temperature, const float *outer_temperature, const bool *heater_on, const bool *lamp_on, const float elapsed_seconds)
+void adjust_humidity_sprinkler_is_off(float *humidity, const float soil_moisture, const float elapsed_seconds)
 {
-	if (*heater_on && *temperature <= MAX_TEMPERATURE && *lamp_on)
+	if (soil_moisture >= 50 && in_interval(*humidity, SPRINKLER_OFF_AND_SOIL_GTE_50, MAX_HUMIDITY, elapsed_seconds, true))
 	{
-		*temperature += 0.6 * elapsed_seconds;
+		*humidity += SPRINKLER_OFF_AND_SOIL_GTE_50 * elapsed_seconds;	
 	}
-	else if (*heater_on && *temperature <= MAX_TEMPERATURE)
+	else if (in_interval(*humidity, SPRINKLER_OFF_AND_SOIL_LT_50, MIN_HUMIDITY, elapsed_seconds, false))
 	{
-		*temperature += 0.5 * elapsed_seconds;
+		*humidity -= SPRINKLER_OFF_AND_SOIL_LT_50 * elapsed_seconds;	
 	}
-	else if (!*heater_on && *temperature > *outer_temperature)
+	else
 	{
-		*temperature -= 0.05 * elapsed_seconds;
+		*humidity = MIN_HUMIDITY;
 	}
+}
+
+void measure_soil_moisture(float *soil_moisture, const float temperature, const bool sprinkler_on, const float elapsed_seconds)
+{
+	if (sprinkler_on)
+	{
+		adjust_soil_moisture_sprinkler_on(soil_moisture, elapsed_seconds);
+	}
+	else
+	{
+		adjust_soil_moisture_sprinkler_off(soil_moisture, temperature, elapsed_seconds);
+	}
+}
+
+void adjust_soil_moisture_sprinkler_on(float *soil_moisture, const float elapsed_seconds)
+{
+	if (in_interval(*soil_moisture, SPRINKLER_ON, MAX_SOIL_MOISTURE, elapsed_seconds, true)) 
+	{
+		*soil_moisture += SPRINKLER_ON * elapsed_seconds;
+	}
+	else
+	{
+		*soil_moisture = MAX_SOIL_MOISTURE;
+	}
+}
+
+void adjust_soil_moisture_sprinkler_off(float *soil_moisture, const float temperature, const float elapsed_seconds)
+{
+	if (temperature >= 30 && in_interval(*soil_moisture, SPRINKLER_OFF_AND_TEMP_GTE_30, MIN_SOIL_MOISTURE, elapsed_seconds, false))
+	{
+		*soil_moisture -= SPRINKLER_OFF_AND_TEMP_GTE_30 * elapsed_seconds;
+	}
+	else if (in_interval(*soil_moisture, SPRINKLER_OFF_AND_TEMP_LT_30, MIN_SOIL_MOISTURE, elapsed_seconds, false))
+	{
+		*soil_moisture -= SPRINKLER_OFF_AND_TEMP_LT_30 * elapsed_seconds;
+	}
+	else
+	{
+		*soil_moisture = MIN_SOIL_MOISTURE;
+	}
+}
+
+void measure_temperature(float *temperature, const float outer_temperature, const bool heater_on, const bool lamp_on, const float elapsed_seconds)
+{
+	if (heater_on)
+	{
+		adjust_temperature_heater_on(temperature, lamp_on, elapsed_seconds);
+	}
+	else
+	{
+		adjust_temperature_heater_off(temperature, lamp_on, outer_temperature, elapsed_seconds);
+	}
+}
+
+void adjust_temperature_heater_on(float *temperature, const bool lamp_on, const float elapsed_seconds)
+{
+	if (lamp_on && in_interval(*temperature, HEATER_ON_AND_LAMP_ON, MAX_TEMPERATURE, elapsed_seconds, true))
+	{
+		*temperature += HEATER_ON_AND_LAMP_ON * elapsed_seconds;
+	}
+	else if (in_interval(*temperature, HEATER_ON_AND_LAMP_OFF, MAX_TEMPERATURE, elapsed_seconds, true))
+	{
+		*temperature += HEATER_ON_AND_LAMP_OFF * elapsed_seconds;
+	}
+	else {
+		*temperature = MAX_TEMPERATURE;
+	}
+}
+
+void adjust_temperature_heater_off(float *temperature, const bool lamp_on, const float outer_temperature, const float elapsed_seconds)
+{
+	if (lamp_on && *temperature > outer_temperature && in_interval(*temperature, HEATER_OFF_AND_LAMP_ON, outer_temperature, elapsed_seconds, false))
+	{
+		*temperature -= HEATER_OFF_AND_LAMP_ON * elapsed_seconds;
+	}
+	else if (*temperature > outer_temperature && in_interval(*temperature, HEATER_OFF_AND_LAMP_OFF, outer_temperature, elapsed_seconds, false))
+	{
+		*temperature -= HEATER_OFF_AND_LAMP_OFF * elapsed_seconds;
+	}
+	else if (*temperature < outer_temperature && in_interval(*temperature, HEATER_OFF_AND_TEMP_LT_OUT_TEMP, MAX_TEMPERATURE, elapsed_seconds, true))
+	{
+		*temperature += HEATER_OFF_AND_TEMP_LT_OUT_TEMP * elapsed_seconds;
+	}
+	else if (*temperature < outer_temperature || *temperature > outer_temperature)
+	{
+		*temperature = outer_temperature;
+	}
+}
+
+bool in_interval(const float base, const float value, const float threshold, const float elapsed_seconds, const bool max) 
+{
+	float scaled_value = value * elapsed_seconds;
+	float modified_value = base + (max ? scaled_value : -scaled_value);
+
+	return max ? (modified_value <= threshold) : (modified_value >= threshold);
 }
