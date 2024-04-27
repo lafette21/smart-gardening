@@ -15,7 +15,7 @@ data = {
           "max": 1.0
         }
       },
-      "temperature": {
+      "temp": {
         "range": {
           "min": 23.4,
           "max": 34.4
@@ -27,7 +27,7 @@ data = {
           "max": 1.0
         }
       },
-      "brightness": {
+      "light": {
         "range": {
           "min": 0,
           "max": 1.0
@@ -38,3 +38,7 @@ data = {
 }
 
 fba.post("/polytunnels/create", data=data)
+#  fba.post("/polytunnels/delete", data="")
+#  id = "2296cf0f-d834-4d26-8d84-b0acb0d081ba"
+#  fba.post(f"/polytunnels/{id}/info/devices/heater", data="")
+#  fba.post("/polytunnels/intervene", data={ "uuid": "", "device": "sprinkler" })
