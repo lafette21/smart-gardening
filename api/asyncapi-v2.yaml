@@ -51,6 +51,13 @@ channels:
     messages:
       PolytunnelDeletionReq:
         $ref: '#/components/messages/PolytunnelDeletionReq'
+  polytunnelsIntervene:
+    servers:
+      - $ref: '#/servers/firebase'
+    address: /polytunnels/intervene
+    messages:
+      PolytunnelInterventionReq:
+        $ref: '#/components/messages/PolytunnelInterventionReq'
   polytunnelsInfoCropAttribLightFB:
     servers:
       - $ref: '#/servers/firebase'
@@ -133,7 +140,6 @@ channels:
         $ref: '#/components/messages/PolytunnelsInfoDevice'
   polytunnelsInterveneHeater:
     servers:
-      - $ref: '#/servers/firebase'
       - $ref: '#/servers/mosquitto'
     address: /polytunnels/{id}/intervene/devices/heater
     messages:
@@ -141,7 +147,6 @@ channels:
         $ref: '#/components/messages/PolytunnelsInterventionDevice'
   polytunnelsInterveneLamp:
     servers:
-      - $ref: '#/servers/firebase'
       - $ref: '#/servers/mosquitto'
     address: /polytunnels/{id}/intervene/devices/lamp
     messages:
@@ -149,7 +154,6 @@ channels:
         $ref: '#/components/messages/PolytunnelsInterventionDevice'
   polytunnelsInterveneSprinkler:
     servers:
-      - $ref: '#/servers/firebase'
       - $ref: '#/servers/mosquitto'
     address: /polytunnels/{id}/intervene/devices/sprinkler
     messages:
@@ -348,6 +352,18 @@ operations:
       $ref: '#/channels/polytunnelsInfoSprinkler'
     messages:
       - $ref: '#/channels/polytunnelsInfoSprinkler/messages/PolytunnelsInfoDevice'
+  sendPolytunnelsIntervention:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsIntervene'
+    messages:
+      - $ref: '#/channels/polytunnelsIntervene/messages/PolytunnelInterventionReq'
+  onPolytunnelsIntervention:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsIntervene'
+    messages:
+      - $ref: '#/channels/polytunnelsIntervene/messages/PolytunnelInterventionReq'
   sendPolytunnelsInterventionHeater:
     action: send
     channel:
@@ -408,6 +424,23 @@ components:
       payload:
         type: string
         format: uuid
+    PolytunnelInterventionReq:
+      payload:
+        type: object
+        required:
+          - uuid
+          - device
+        properties:
+          uuid:
+            type: string
+            format: uuid
+          device:
+            type: string
+            enum: [
+              "heater",
+              "lamp",
+              "sprinkler"
+            ]
     PolytunnelList:
       payload:
         type: array
@@ -454,17 +487,17 @@ components:
           type: object
           required:
             - soilMoisture
-            - temperature
+            - temp
             - humidity
-            - brightness
+            - light
           properties:
             soilMoisture:
               $ref: '#/components/schemas/Range'
-            temperature:
+            temp:
               $ref: '#/components/schemas/Range'
             humidity:
               $ref: '#/components/schemas/Range'
-            brightness:
+            light:
               $ref: '#/components/schemas/Range'
     Range:
       type: object
