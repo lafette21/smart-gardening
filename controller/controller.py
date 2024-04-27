@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import random
 import time
 import uuid
@@ -95,7 +96,7 @@ class ContainerOrchestrator:
 
 
 orchestrator = ContainerOrchestrator()
-fba = firebase.FirebaseApplication("https://ertos-2024-default-rtdb.europe-west1.firebasedatabase.app/", None)
+fba = firebase.FirebaseApplication(os.environ.get("FIREBASE_HOST", "https://ertos-2024-default-rtdb.europe-west1.firebasedatabase.app/"), None)
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
 intervention_requests = []
@@ -243,7 +244,7 @@ def main():
 
     mqtt_data = dict()
     mqttc.user_data_set(mqtt_data)
-    mqttc.connect("pi.ystre.org")
+    mqttc.connect(os.environ.get("MQTT_HOST", "pi.ystre.org"))
 
     mqttc.subscribe("/env/info/light")
     mqttc.subscribe("/env/info/temp")
