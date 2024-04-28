@@ -13,7 +13,7 @@
 #include <time.h>
 
 // app settings
-#define POLY_ID_ENV_VAR_NAME "PolyID"
+#define POLY_ID_ENV_VAR_NAME "UUID"
 
 // Mosquitto
 #define MQTT_HOSTNAME "localhost"
