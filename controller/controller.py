@@ -133,7 +133,6 @@ def on_polytunnel_create_requested(response):
                 name=id,
                 start=True,
                 environment={ "UUID": id },
-                entrypoint="sh -c 'echo $UUID'",
             )
             polytunnel_schemas[id] = data
             mqttc.subscribe(f"/polytunnels/{id}/#")
@@ -150,10 +149,9 @@ def on_polytunnel_delete_requested(response):
             polytunnel_delete_requests.append(key)
             id = response[key]
             logger.info(f"Delete request: {id}")
-            polytunnel_schemas.pop(id)
-            polytunnel_fba_channels.pop(id)
-            orchestrator.delete_container(id)
             mqttc.unsubscribe(f"/polytunnels/{id}/#")
+            orchestrator.delete_container(id)
+            polytunnel_schemas.pop(id)
             fba.post("/polytunnels/list", data=orchestrator.containers() if len(orchestrator.containers()) > 0 else "")
 
 
@@ -213,7 +211,7 @@ def on_message(client, userdata, message):
         elif "humidity" in message.topic:
             min = attrib["humidity"]["range"]["min"]
             max = attrib["humidity"]["range"]["max"]
-        elif "soilMoisture" in message.topic:
+        elif "soil-moisture" in message.topic:
             min = attrib["soilMoisture"]["range"]["min"]
             max = attrib["soilMoisture"]["range"]["max"]
         status = "Normal" if min <= value and value <= max else "Critical"
@@ -274,9 +272,9 @@ if __name__ == "__main__":
     except Exception as ex:
         logger.error(f"Exception: {ex}")
     finally:
+        mqttc.disconnect()
+
         orchestrator.clean_up()
 
         fba.delete("/polytunnels", None)
         fba.delete("/env", None)
-
-        mqttc.disconnect()
