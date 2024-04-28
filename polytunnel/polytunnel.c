@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include <mosquitto.h>
 #include <signal.h>
 #include <unistd.h>
@@ -7,17 +9,20 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/stat.h>
-#include <string.h>
-#include <stdlib.h>
+#include <sys/time.h>
 #include <time.h>
+
+// app settings
+#define POLY_ID_ENV_VAR_NAME "PolyID"
 
 // Mosquitto
 #define MQTT_HOSTNAME "localhost"
 #define MQTT_PORT 1884
-#define MQTT_CLIENTID "erts_sub"
-#define MQTT_TOPIC "hello"
 
-#define TIME_BETWEEN_MEASUREMENTS 2 // sec
+#define TIME_BETWEEN_MEASUREMENTS_SEC 0.5 // seconds !!! only integer !!!
+#define TIME_BETWEEN_MEASUREMENTS_NSEC 0 // nanoseconds !!! only integer !!!
+#define TIME_BEFORE_FIRST_MEASUREMENT_SEC 1 // seconds !!! only integer !!!
+#define TIME_BEFORE_FIRST_MEASUREMENT_NSEC 0 // nanoseconds !!! only integer !!!
 #define ID_CHARACTER_LENGTH 36 // without terminating null
 
 #define TEST_MODE false
@@ -29,9 +34,6 @@
 #endif
 
 struct callback_params {
-	float *humidity;
-	float *soil_moisture;
-	float *temperature;
 	float *outer_temperature;
 
 	bool *sprinkler_on;
@@ -39,7 +41,26 @@ struct callback_params {
 	bool *lamp_on;
 };
 
+struct measurement_params {
+	float *outer_temperature;
+
+	float *humidity;
+	float *soil_moisture;
+	float *temperature;
+
+	bool *sprinkler_on;
+	bool *heater_on;
+	bool *lamp_on;
+	pid_t child;
+};
+
+// Timer
+double get_time();
+double get_elapsed_time(double start_time);
+void handler_timer(int signal_number, siginfo_t *si, void *uc);
+
 // Mosquitto
+void set_poly_id(int argc, char *argv[]);
 void message_callback(struct mosquitto *mosq, void *userdata, const struct mosquitto_message *message);
 void connect_callback(struct mosquitto *mosq, void *userdata, int result);
 void subscribe_callback(struct mosquitto *mosq, void *userdata, int mid, int qos_count, const int *granted_ops);
@@ -50,13 +71,16 @@ void send_message(char *topic_snd_part, char *payload);
 void send_measurements();
 void take_measurements(float *humidity, float *temperature, float outer_temperature, float *soil_moisture, const bool sprinkler_on, 
 							const bool heater_on, const bool lamp_on, const float elapsed_seconds);
+
 void measure_humidity(float *humidity, const float soil_moisture, const float temperature, const bool sprinkler_on, const float elapsed_seconds);
-void measure_soil_moisture(float *soil_moisture, const float temperature, const bool sprinkler_on, const float elapsed_seconds);
-void measure_temperature(float *temperature, const float outer_temperature, const bool heater_on, const bool lamp_on, const float elapsed_seconds);
 void adjust_humidity_sprinkler_is_on(float *humidity, const float temperature, const float elapsed_seconds);
 void adjust_humidity_sprinkler_is_off(float *humidity, const float soil_moisture, const float elapsed_seconds);
+
+void measure_soil_moisture(float *soil_moisture, const float temperature, const bool sprinkler_on, const float elapsed_seconds);
 void adjust_soil_moisture_sprinkler_on(float *soil_moisture, const float elapsed_seconds);
 void adjust_soil_moisture_sprinkler_off(float *soil_moisture, const float temperature, const float elapsed_seconds);
+
+void measure_temperature(float *temperature, const float outer_temperature, const bool heater_on, const bool lamp_on, const float elapsed_seconds);
 void adjust_temperature_heater_on(float *temperature, const bool lamp_on, const float elapsed_seconds);
 void adjust_temperature_heater_off(float *temperature, const bool lamp_on, const float outer_temperature, const float elapsed_seconds);
 
@@ -74,23 +98,15 @@ unsigned int lamp_on_shared_mem_id = 0;
 
 struct mosquitto *mosq = NULL;
 
-char poly_id[5];
+char poly_id[ID_CHARACTER_LENGTH];
+
+double start_time = 0.0;
 
 int main(int argc, char *argv[])
 {
-	if (argc < 2) 
-	{
-		printf("ID is missing!\n");
-		exit(1);
-	}
+	set_poly_id(argc, argv);
 
-	if (strlen(argv[1]) > ID_CHARACTER_LENGTH)
-	{
-		printf("ID's maximal length is %d, given length is: %ld\n", ID_CHARACTER_LENGTH, strlen(argv[1]));
-		exit(1);
-	}
-
-	strcpy(poly_id, argv[1]);
+	printf("polyID: %s\n", getenv("PolyID"));
 
 	humidity_shared_mem_id = shmget(1000, sizeof(float), IPC_CREAT | S_IRUSR | S_IWUSR);
 	temperature_shared_mem_id = shmget(2000, sizeof(float), IPC_CREAT | S_IRUSR | S_IWUSR);
@@ -124,25 +140,43 @@ int main(int argc, char *argv[])
 		*heater_on = false;
 		*lamp_on = false;
 
-		// timer
-		clock_t last_update = clock();
-		clock_t elapsed_time = 0; // elapsed time from last update
+		struct measurement_params data = {outer_temperature, humidity, soil_moisture, temperature, sprinkler_on, heater_on, lamp_on, child};
 
-		while (true)
+		timer_t timerID;
+
+		//CREATE TIMER WITH RT SIGNAL
+    	struct sigevent sigev;
+    	sigev.sigev_notify = SIGEV_SIGNAL;
+    	sigev.sigev_signo = SIGRTMIN + 4;
+    	sigev.sigev_value.sival_ptr = &data;
+
+		if (timer_create(CLOCK_REALTIME, &sigev, &timerID))
 		{
-			elapsed_time = clock() - last_update;
-			float elapsed_seconds = ((double)elapsed_time / CLOCKS_PER_SEC);
-
-			if (elapsed_seconds >= TIME_BETWEEN_MEASUREMENTS)
-			{
-				take_measurements(humidity, temperature, *outer_temperature, soil_moisture, *sprinkler_on, *heater_on, *lamp_on, elapsed_seconds);
-				kill(child, SIGRTMAX);
-				last_update = clock();
-			}
-
+			perror("Failed to create Timer");
+			exit(1);
 		}
 
-		exit(0);
+		//Register signal handler
+		struct sigaction sigact;
+		sigemptyset(&sigact.sa_mask);
+		sigact.sa_sigaction = handler_timer;
+		sigact.sa_flags = SA_SIGINFO;
+		sigaction(SIGRTMIN + 4, &sigact, NULL);
+
+		struct itimerspec timer;
+		timer.it_interval.tv_sec = 1;
+		timer.it_interval.tv_nsec = 0;
+		timer.it_value.tv_sec = 1;
+		timer.it_value.tv_nsec = 0;
+
+		start_time = get_time();
+		timer_settime(timerID, 0, &timer, NULL);
+		struct itimerspec expires;
+		while (true)
+		{	
+			sleep(1); // ?
+			timer_gettime(timerID, &expires);
+		}
 	}
 	else // Child
 	{
@@ -157,7 +191,7 @@ int main(int argc, char *argv[])
 		bool *heater_on = shmat(heater_on_shared_mem_id, NULL, 0);
 		bool *lamp_on = shmat(lamp_on_shared_mem_id, NULL, 0);
 		
-		struct callback_params params = {humidity, soil_moisture, temperature, outer_temperature, sprinkler_on, heater_on, lamp_on};
+		struct callback_params params = {outer_temperature, sprinkler_on, heater_on, lamp_on};
 		mosquitto_lib_init();
 
 		mosq = mosquitto_new(NULL, true, &params);
@@ -186,6 +220,56 @@ int main(int argc, char *argv[])
 	exit(0);
 }
 
+void set_poly_id(int argc, char *argv[])
+{
+	if (argc < 2) 
+	{
+		printf("Using environment variable for poly_id!\n");
+
+		if (getenv(POLY_ID_ENV_VAR_NAME) == NULL)
+		{
+			printf("Unbable to find %s environment variable!\n", POLY_ID_ENV_VAR_NAME);
+			exit(1);
+		}
+
+		strcpy(poly_id, getenv(POLY_ID_ENV_VAR_NAME));
+	}
+	else
+	{
+		printf("Using command line argument for poly_id!\n");
+
+		if (strlen(argv[1]) > ID_CHARACTER_LENGTH)
+		{
+			printf("ID's maximal length is %d, given length is: %ld\n", ID_CHARACTER_LENGTH, strlen(argv[1]));
+			exit(1);
+		}
+		strcpy(poly_id, argv[1]);
+	} 
+}
+
+double get_time()
+{
+	struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    return now.tv_sec + now.tv_nsec * 1e-9;
+}
+
+double get_elapsed_time(double start_time)
+{
+    return get_time() - start_time;
+}
+
+void handler_timer(int signal_number, siginfo_t *si, void *uc)
+{
+	double elapsed = get_elapsed_time(start_time);
+    start_time = get_time();
+
+	struct measurement_params *data = (struct measurement_params *)si->si_value.sival_ptr; 
+	
+	take_measurements(data->humidity, data->temperature, *data->outer_temperature, data->soil_moisture, *data->sprinkler_on, *data->heater_on, *data->lamp_on, elapsed);
+	kill(data->child, SIGRTMAX);
+}
+
 void send_measurements()
 {
 	printf("Sending measurements.\n");
@@ -197,13 +281,13 @@ void send_measurements()
 	bool *heater_on = shmat(heater_on_shared_mem_id, NULL, 0);
 	bool *lamp_on = shmat(lamp_on_shared_mem_id, NULL, 0);
 
-	char humidity_str[6];
+	char humidity_str[10];
 	sprintf(humidity_str, "%5.2f", *humidity);
 
-	char soil_moisture_str[6];
+	char soil_moisture_str[10];
 	sprintf(soil_moisture_str, "%5.2f", *soil_moisture);
 
-	char temperature_str[6];
+	char temperature_str[10];
 	sprintf(temperature_str, "%5.2f", *temperature);
 
 	char sprinkler_on_str[2];
@@ -288,7 +372,13 @@ void connect_callback(struct mosquitto *mosq, void *userdata, int result)
 void subscribe_to_topic(char *topic_part, bool full_url)
 {
 	const int topic_length = full_url ? strlen(topic_part) : 13 + ID_CHARACTER_LENGTH + strlen(topic_part);
-	char topic[topic_length];
+	char *topic = (char *)malloc((topic_length + 1) * sizeof(char));
+
+	if (topic == NULL)
+	{
+		printf("Failed to allocate memory for topic.");
+		exit(1);
+	}
 
 	if (full_url)
 	{
@@ -320,8 +410,11 @@ void take_measurements(float *humidity, float *temperature, const float outer_te
 							const bool heater_on, const bool lamp_on, const float elapsed_seconds) 
 {
 	printf("-------------------------------------------------------------------------------------------------\n");
-	printf("measuring\n");
 
+	printf("sprinkler: %s\n", sprinkler_on ? "on" : "off");
+	printf("heater: %s\n", heater_on ? "on" : "off");
+	printf("lamp: %s\n", lamp_on ? "on" : "off");
+	printf("--------\n");
 	measure_humidity(humidity, *soil_moisture, *temperature, sprinkler_on, elapsed_seconds);
 	measure_soil_moisture(soil_moisture, *temperature, sprinkler_on, elapsed_seconds);
 	measure_temperature(temperature, outer_temperature, heater_on, lamp_on, elapsed_seconds);
@@ -329,7 +422,6 @@ void take_measurements(float *humidity, float *temperature, const float outer_te
 	printf("humidity: %5.2f\n", *humidity);
 	printf("soil_moisture: %5.2f\n", *soil_moisture);
 	printf("temperature: %5.2f\n", *temperature);
-	printf("measuring ended\n");
 }
 
 void measure_humidity(float *humidity, const float soil_moisture, const float temperature, const bool sprinkler_on, const float elapsed_seconds)
@@ -457,7 +549,7 @@ void adjust_temperature_heater_off(float *temperature, const bool lamp_on, const
 	{
 		*temperature += HEATER_OFF_AND_TEMP_LT_OUT_TEMP * elapsed_seconds;
 	}
-	else if (*temperature < outer_temperature || *temperature > outer_temperature)
+	else if ((*temperature < outer_temperature || *temperature > outer_temperature) && (outer_temperature >= MIN_TEMPERATURE && outer_temperature <= MAX_TEMPERATURE))
 	{
 		*temperature = outer_temperature;
 	}
