@@ -375,7 +375,6 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 
 void connect_callback(struct mosquitto *mosq, void *userdata, int result)
 {
-    int i;
     if (!result)
     {
         /* Subscribe to broker information topics on successful connect. */
