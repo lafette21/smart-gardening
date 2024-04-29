@@ -32,3 +32,14 @@ RUN wget https://mosquitto.org/files/source/mosquitto-2.0.18.tar.gz \
     && make install
 
 ENV LD_LIBRARY_PATH=/usr/local/lib64
+
+RUN mkdir -p /opt/polytunnel
+
+COPY polytunnel.c /opt/polytunnel
+COPY measure_simulation.h /opt/polytunnel
+COPY measure_simulation_test.h /opt/polytunnel
+
+RUN cd /opt/polytunnel \
+    && gcc-12 polytunnel.c -o polytunnel -lmosquitto -lrt
+
+ENTRYPOINT ["/opt/polytunnel/polytunnel"]
