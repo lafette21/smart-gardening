@@ -21,11 +21,11 @@
 #define POLY_ID_ENV_VAR_NAME "UUID"
 
 // Mosquitto
-#define MQTT_HOSTNAME "localhost"
-#define MQTT_PORT 1884
+#define MQTT_HOSTNAME "pi.ystre.org"
+#define MQTT_PORT 1883
 
-#define TIME_BETWEEN_MEASUREMENTS_SEC 0 // seconds !!! only integer !!!
-#define TIME_BETWEEN_MEASUREMENTS_NSEC 500000 // nanoseconds !!! only integer !!!
+#define TIME_BETWEEN_MEASUREMENTS_SEC 1 // seconds !!! only integer !!!
+#define TIME_BETWEEN_MEASUREMENTS_NSEC 0 // nanoseconds !!! only integer !!!
 #define TIME_BEFORE_FIRST_MEASUREMENT_SEC 1 // seconds !!! only integer !!!
 #define TIME_BEFORE_FIRST_MEASUREMENT_NSEC 0 // nanoseconds !!! only integer !!!
 #define ID_CHARACTER_LENGTH 36 // without terminating null
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
     	mosquitto_message_callback_set(mosq, message_callback);
     	mosquitto_subscribe_callback_set(mosq, subscribe_callback);
 
-		if (mosquitto_connect(mosq, MQTT_HOSTNAME, MQTT_PORT, 60)) // keepalive=60
+		if (mosquitto_connect(mosq, MQTT_HOSTNAME, MQTT_PORT, 60))
     	{
     	    printf("Unable to connect.\n");
     	    exit(1);
