@@ -26,7 +26,7 @@ def temperature():
 
 
 camera.exposure_mode = "off"
-HOSTNAME = os.getenv("MQTT_HOSTNAME", "pi.ystre.org")
+HOSTNAME = os.getenv("MQTT_HOST", "pi.ystre.org")
 
 while True:
     brightness = np.mean(calc_brightness(capture_image())) / 256.0
