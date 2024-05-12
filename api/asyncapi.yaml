@@ -14,6 +14,22 @@ servers:
     host: test.mosquitto.org
     protocol: mqtt
 channels:
+  envInfoLight:
+    servers:
+      - $ref: '#/servers/firebase'
+      - $ref: '#/servers/mosquitto'
+    address: /env/info/light
+    messages:
+      EnvInfoLight:
+        $ref: '#/components/messages/EnvInfoLight'
+  envInfoTemp:
+    servers:
+      - $ref: '#/servers/firebase'
+      - $ref: '#/servers/mosquitto'
+    address: /env/info/temp
+    messages:
+      EnvInfoTemp:
+        $ref: '#/components/messages/EnvInfoTemp'
   polytunnelsList:
     servers:
       - $ref: '#/servers/firebase'
@@ -26,48 +42,148 @@ channels:
       - $ref: '#/servers/firebase'
     address: /polytunnels/create
     messages:
-      PolytunnelNeeds:
-        $ref: '#/components/messages/PolytunnelNeeds'
-  polytunnelsInfoFB:
+      PolytunnelCreationReq:
+        $ref: '#/components/messages/PolytunnelCreationReq'
+  polytunnelsDelete:
     servers:
       - $ref: '#/servers/firebase'
-    address: /polytunnels/{id}/info
-    parameters:
-      id:
-        description: The ID of the polytunnel.
+    address: /polytunnels/delete
     messages:
-      PolytunnelInfoFB:
-        $ref: '#/components/messages/PolytunnelInfoFB'
-  polytunnelsInfoMQTT:
-    servers:
-      - $ref: '#/servers/mosquitto'
-    address: /polytunnels/{id}/info
-    parameters:
-      id:
-        description: The ID of the polytunnel.
-    messages:
-      PolytunnelInfoMQTT:
-        $ref: '#/components/messages/PolytunnelInfoMQTT'
+      PolytunnelDeletionReq:
+        $ref: '#/components/messages/PolytunnelDeletionReq'
   polytunnelsIntervene:
     servers:
       - $ref: '#/servers/firebase'
-      - $ref: '#/servers/mosquitto'
-    address: /polytunnels/{id}/intervene
-    parameters:
-      id:
-        description: The ID of the polytunnel.
+    address: /polytunnels/intervene
     messages:
-      Intervention:
-        $ref: '#/components/messages/Intervention'
-  environmentInfo:
+      PolytunnelInterventionReq:
+        $ref: '#/components/messages/PolytunnelInterventionReq'
+  polytunnelsInfoCropAttribLightFB:
+    servers:
+      - $ref: '#/servers/firebase'
+    address: /polytunnels/{id}/info/crop/attrib/light
+    messages:
+      PolytunnelsInfoCropAttribLightFB:
+        $ref: '#/components/messages/PolytunnelInfoAttribStatusValue'
+  polytunnelsInfoCropAttribHumidityFB:
+    servers:
+      - $ref: '#/servers/firebase'
+    address: /polytunnels/{id}/info/crop/attrib/humidity
+    messages:
+      PolytunnelsInfoCropAttribHumidityFB:
+        $ref: '#/components/messages/PolytunnelInfoAttribStatusValue'
+  polytunnelsInfoCropAttribSoilMoistureFB:
+    servers:
+      - $ref: '#/servers/firebase'
+    address: /polytunnels/{id}/info/crop/attrib/soil-moisture
+    messages:
+      PolytunnelsInfoCropAttribSoilMoistureFB:
+        $ref: '#/components/messages/PolytunnelInfoAttribStatusValue'
+  polytunnelsInfoCropAttribTempFB:
+    servers:
+      - $ref: '#/servers/firebase'
+    address: /polytunnels/{id}/info/crop/attrib/temp
+    messages:
+      PolytunnelsInfoCropAttribTempFB:
+        $ref: '#/components/messages/PolytunnelInfoAttribStatusValue'
+  polytunnelsInfoCropAttribLightMQTT:
+    servers:
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/info/crop/attrib/light
+    messages:
+      PolytunnelsInfoCropAttribLightMQTT:
+        $ref: '#/components/messages/PolytunnelInfoAttribLight'
+  polytunnelsInfoCropAttribHumidityMQTT:
+    servers:
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/info/crop/attrib/humidity
+    messages:
+      PolytunnelsInfoCropAttribHumidityMQTT:
+        $ref: '#/components/messages/PolytunnelInfoAttribHumidity'
+  polytunnelsInfoCropAttribSoilMoistureMQTT:
+    servers:
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/info/crop/attrib/soil-moisture
+    messages:
+      PolytunnelsInfoCropAttribSoilMoistureMQTT:
+        $ref: '#/components/messages/PolytunnelInfoAttribSoilMoisture'
+  polytunnelsInfoCropAttribTempMQTT:
+    servers:
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/info/crop/attrib/temp
+    messages:
+      PolytunnelsInfoCropAttribTempMQTT:
+        $ref: '#/components/messages/PolytunnelInfoAttribTemp'
+  polytunnelsInfoHeater:
     servers:
       - $ref: '#/servers/firebase'
       - $ref: '#/servers/mosquitto'
-    address: /environment/info
+    address: /polytunnels/{id}/info/devices/heater
     messages:
-      EnvironmentInfo:
-        $ref: '#/components/messages/EnvironmentInfo'
+      PolytunnelsInfoDevice:
+        $ref: '#/components/messages/PolytunnelsInfoDevice'
+  polytunnelsInfoLamp:
+    servers:
+      - $ref: '#/servers/firebase'
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/info/devices/lamp
+    messages:
+      PolytunnelsInfoDevice:
+        $ref: '#/components/messages/PolytunnelsInfoDevice'
+  polytunnelsInfoSprinkler:
+    servers:
+      - $ref: '#/servers/firebase'
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/info/devices/sprinkler
+    messages:
+      PolytunnelsInfoDevice:
+        $ref: '#/components/messages/PolytunnelsInfoDevice'
+  polytunnelsInterveneHeater:
+    servers:
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/intervene/devices/heater
+    messages:
+      PolytunnelsInterventionDevice:
+        $ref: '#/components/messages/PolytunnelsInterventionDevice'
+  polytunnelsInterveneLamp:
+    servers:
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/intervene/devices/lamp
+    messages:
+      PolytunnelsInterventionDevice:
+        $ref: '#/components/messages/PolytunnelsInterventionDevice'
+  polytunnelsInterveneSprinkler:
+    servers:
+      - $ref: '#/servers/mosquitto'
+    address: /polytunnels/{id}/intervene/devices/sprinkler
+    messages:
+      PolytunnelsInterventionDevice:
+        $ref: '#/components/messages/PolytunnelsInterventionDevice'
 operations:
+  sendEnvInfoLight:
+    action: send
+    channel:
+      $ref: '#/channels/envInfoLight'
+    messages:
+      - $ref: '#/channels/envInfoLight/messages/EnvInfoLight'
+  onEnvInfoLight:
+    action: receive
+    channel:
+      $ref: '#/channels/envInfoLight'
+    messages:
+      - $ref: '#/channels/envInfoLight/messages/EnvInfoLight'
+  sendEnvInfoTemp:
+    action: send
+    channel:
+      $ref: '#/channels/envInfoTemp'
+    messages:
+      - $ref: '#/channels/envInfoTemp/messages/EnvInfoTemp'
+  onEnvInfoTemp:
+    action: receive
+    channel:
+      $ref: '#/channels/envInfoTemp'
+    messages:
+      - $ref: '#/channels/envInfoTemp/messages/EnvInfoTemp'
   sendPolytunnelList:
     action: send
     channel:
@@ -85,106 +201,239 @@ operations:
     channel:
       $ref: '#/channels/polytunnelsCreate'
     messages:
-      - $ref: '#/channels/polytunnelsCreate/messages/PolytunnelNeeds'
+      - $ref: '#/channels/polytunnelsCreate/messages/PolytunnelCreationReq'
   onPolytunnelCreationReq:
     action: receive
     channel:
       $ref: '#/channels/polytunnelsCreate'
     messages:
-      - $ref: '#/channels/polytunnelsCreate/messages/PolytunnelNeeds'
-  sendPolytunnelInfoFB:
+      - $ref: '#/channels/polytunnelsCreate/messages/PolytunnelCreationReq'
+  sendPolytunnelDeletionReq:
     action: send
     channel:
-      $ref: '#/channels/polytunnelsInfoFB'
+      $ref: '#/channels/polytunnelsDelete'
     messages:
-      - $ref: '#/channels/polytunnelsInfoFB/messages/PolytunnelInfoFB'
-  onPolytunnelInfoFB:
+      - $ref: '#/channels/polytunnelsDelete/messages/PolytunnelDeletionReq'
+  onPolytunnelDeletionReq:
     action: receive
     channel:
-      $ref: '#/channels/polytunnelsInfoFB'
+      $ref: '#/channels/polytunnelsDelete'
     messages:
-      - $ref: '#/channels/polytunnelsInfoFB/messages/PolytunnelInfoFB'
-  sendPolytunnelInfoMQTT:
+      - $ref: '#/channels/polytunnelsDelete/messages/PolytunnelDeletionReq'
+  sendPolytunnelsInfoCropAttribLightFB:
     action: send
     channel:
-      $ref: '#/channels/polytunnelsInfoMQTT'
+      $ref: '#/channels/polytunnelsInfoCropAttribLightFB'
     messages:
-      - $ref: '#/channels/polytunnelsInfoMQTT/messages/PolytunnelInfoMQTT'
-  onPolytunnelInfoMQTT:
+      - $ref: '#/channels/polytunnelsInfoCropAttribLightFB/messages/PolytunnelsInfoCropAttribLightFB'
+  onPolytunnelsInfoCropAttribLightFB:
     action: receive
     channel:
-      $ref: '#/channels/polytunnelsInfoMQTT'
+      $ref: '#/channels/polytunnelsInfoCropAttribLightFB'
     messages:
-      - $ref: '#/channels/polytunnelsInfoMQTT/messages/PolytunnelInfoMQTT'
-  sendIntervention:
+      - $ref: '#/channels/polytunnelsInfoCropAttribLightFB/messages/PolytunnelsInfoCropAttribLightFB'
+  sendPolytunnelsInfoCropAttribHumidityFB:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribHumidityFB'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribHumidityFB/messages/PolytunnelsInfoCropAttribHumidityFB'
+  onPolytunnelsInfoCropAttribHumidityFB:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribHumidityFB'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribHumidityFB/messages/PolytunnelsInfoCropAttribHumidityFB'
+  sendPolytunnelsInfoCropAttribSoilMoistureFB:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribSoilMoistureFB'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribSoilMoistureFB/messages/PolytunnelsInfoCropAttribSoilMoistureFB'
+  onPolytunnelsInfoCropAttribSoilMoistureFB:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribSoilMoistureFB'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribSoilMoistureFB/messages/PolytunnelsInfoCropAttribSoilMoistureFB'
+  sendPolytunnelsInfoCropAttribTempFB:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribTempFB'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribTempFB/messages/PolytunnelsInfoCropAttribTempFB'
+  onPolytunnelsInfoCropAttribTempFB:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribTempFB'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribTempFB/messages/PolytunnelsInfoCropAttribTempFB'
+  sendPolytunnelsInfoCropAttribLightMQTT:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribLightMQTT'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribLightMQTT/messages/PolytunnelsInfoCropAttribLightMQTT'
+  onPolytunnelsInfoCropAttribLightMQTT:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribLightMQTT'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribLightMQTT/messages/PolytunnelsInfoCropAttribLightMQTT'
+  sendPolytunnelsInfoCropAttribHumidityMQTT:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribHumidityMQTT'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribHumidityMQTT/messages/PolytunnelsInfoCropAttribHumidityMQTT'
+  onPolytunnelsInfoCropAttribHumidityMQTT:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribHumidityMQTT'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribHumidityMQTT/messages/PolytunnelsInfoCropAttribHumidityMQTT'
+  sendPolytunnelsInfoCropAttribSoilMoistureMQTT:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribSoilMoistureMQTT'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribSoilMoistureMQTT/messages/PolytunnelsInfoCropAttribSoilMoistureMQTT'
+  onPolytunnelsInfoCropAttribSoilMoistureMQTT:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribSoilMoistureMQTT'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribSoilMoistureMQTT/messages/PolytunnelsInfoCropAttribSoilMoistureMQTT'
+  sendPolytunnelsInfoCropAttribTempMQTT:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribTempMQTT'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribTempMQTT/messages/PolytunnelsInfoCropAttribTempMQTT'
+  onPolytunnelsInfoCropAttribTempMQTT:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoCropAttribTempMQTT'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoCropAttribTempMQTT/messages/PolytunnelsInfoCropAttribTempMQTT'
+  sendPolytunnelsInfoHeater:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoHeater'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoHeater/messages/PolytunnelsInfoDevice'
+  onPolytunnelsInfoHeater:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoHeater'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoHeater/messages/PolytunnelsInfoDevice'
+  sendPolytunnelsInfoLamp:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoLamp'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoLamp/messages/PolytunnelsInfoDevice'
+  onPolytunnelsInfoLamp:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoLamp'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoLamp/messages/PolytunnelsInfoDevice'
+  sendPolytunnelsInfoSprinkler:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInfoSprinkler'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoSprinkler/messages/PolytunnelsInfoDevice'
+  onPolytunnelsInfoSprinkler:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInfoSprinkler'
+    messages:
+      - $ref: '#/channels/polytunnelsInfoSprinkler/messages/PolytunnelsInfoDevice'
+  sendPolytunnelsIntervention:
     action: send
     channel:
       $ref: '#/channels/polytunnelsIntervene'
     messages:
-      - $ref: '#/channels/polytunnelsIntervene/messages/Intervention'
-  onIntervention:
+      - $ref: '#/channels/polytunnelsIntervene/messages/PolytunnelInterventionReq'
+  onPolytunnelsIntervention:
     action: receive
     channel:
       $ref: '#/channels/polytunnelsIntervene'
     messages:
-      - $ref: '#/channels/polytunnelsIntervene/messages/Intervention'
-  sendEnvironmentInfo:
+      - $ref: '#/channels/polytunnelsIntervene/messages/PolytunnelInterventionReq'
+  sendPolytunnelsInterventionHeater:
     action: send
     channel:
-      $ref: '#/channels/environmentInfo'
+      $ref: '#/channels/polytunnelsInterveneHeater'
     messages:
-      - $ref: '#/channels/environmentInfo/messages/EnvironmentInfo'
-  onEnvironmentInfo:
+      - $ref: '#/channels/polytunnelsInterveneHeater/messages/PolytunnelsInterventionDevice'
+  onPolytunnelsInterventionHeater:
     action: receive
     channel:
-      $ref: '#/channels/environmentInfo'
+      $ref: '#/channels/polytunnelsInterveneHeater'
     messages:
-      - $ref: '#/channels/environmentInfo/messages/EnvironmentInfo'
+      - $ref: '#/channels/polytunnelsInterveneHeater/messages/PolytunnelsInterventionDevice'
+  sendPolytunnelsInterventionLamp:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInterveneLamp'
+    messages:
+      - $ref: '#/channels/polytunnelsInterveneLamp/messages/PolytunnelsInterventionDevice'
+  onPolytunnelsInterventionLamp:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInterveneLamp'
+    messages:
+      - $ref: '#/channels/polytunnelsInterveneLamp/messages/PolytunnelsInterventionDevice'
+  sendPolytunnelsInterventionSprinkler:
+    action: send
+    channel:
+      $ref: '#/channels/polytunnelsInterveneSprinkler'
+    messages:
+      - $ref: '#/channels/polytunnelsInterveneSprinkler/messages/PolytunnelsInterventionDevice'
+  onPolytunnelsInterventionSprinkler:
+    action: receive
+    channel:
+      $ref: '#/channels/polytunnelsInterveneSprinkler'
+    messages:
+      - $ref: '#/channels/polytunnelsInterveneSprinkler/messages/PolytunnelsInterventionDevice'
 components:
   messages:
-    PolytunnelNeeds:
+    EnvInfoLight:
+      payload:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 1
+    EnvInfoTemp:
+      payload:
+        type: number
+        format: float
+    PolytunnelCreationReq:
       payload:
         type: object
         required:
           - crop
         properties:
           crop:
-            $ref: '#/components/schemas/CropRange'
-    PolytunnelInfoFB:
+            $ref: '#/components/schemas/CropNeeds'
+    PolytunnelDeletionReq:
+      payload:
+        type: string
+        format: uuid
+    PolytunnelInterventionReq:
       payload:
         type: object
         required:
-          - crop
-          - devices
-        properties:
-          crop:
-            $ref: '#/components/schemas/Crop'
-          devices:
-            $ref: '#/components/schemas/Devices'
-    PolytunnelInfoMQTT:
-      payload:
-        type: object
-        required:
-          - crop
-          - devices
-        properties:
-          crop:
-            $ref: '#/components/schemas/CropValue'
-          devices:
-            $ref: '#/components/schemas/Devices'
-    PolytunnelList:
-      payload:
-        type: array
-        items:
-          type: string
-          format: uuid
-    Intervention:
-      payload:
-        type: object
-        required:
+          - uuid
           - device
-          - action
         properties:
+          uuid:
+            type: string
+            format: uuid
           device:
             type: string
             enum: [
@@ -192,31 +441,40 @@ components:
               "lamp",
               "sprinkler"
             ]
-          action:
-            type: string
-            enum: [
-              "turn_on",
-              "turn_off"
-            ]
-    EnvironmentInfo:
+    PolytunnelList:
+      payload:
+        type: array
+        items:
+          type: string
+          format: uuid
+    PolytunnelInfoAttribStatusValue:
       payload:
         type: object
-        required:
-          - temperature
-          - brightness
-        properties:
-          temperature:
-            type: number
-            format: float
-            description: The temperature of the environment.
-          brightness:
-            type: number
-            format: float
-            description: The brightness of the environment.
-            minimum: 0
-            maximum: 1
+        $ref: '#/components/schemas/StatusValue'
+    PolytunnelInfoAttribLight:
+      payload:
+        type: number
+        format: float
+        minimum: 0
+        maximum: 1
+    PolytunnelInfoAttribHumidity:
+      payload:
+        type: number
+        format: float
+    PolytunnelInfoAttribSoilMoisture:
+      payload:
+        type: number
+        format: float
+    PolytunnelInfoAttribTemp:
+      payload:
+        type: number
+        format: float
+    PolytunnelsInfoDevice:
+      name: PolytunnelsInfoDevice
+    PolytunnelsInterventionDevice:
+      name: PolytunnelsInterventionDevice
   schemas:
-    Crop:
+    CropNeeds:
       type: object
       required:
         - name
@@ -229,68 +487,18 @@ components:
           type: object
           required:
             - soilMoisture
-            - temperature
+            - temp
             - humidity
-            - brightness
-          properties:
-            soilMoisture:
-              $ref: '#/components/schemas/RangeStatusValue'
-            temperature:
-              $ref: '#/components/schemas/RangeStatusValue'
-            humidity:
-              $ref: '#/components/schemas/RangeStatusValue'
-            brightness:
-              $ref: '#/components/schemas/RangeStatusValue'
-    CropRange:
-      type: object
-      required:
-        - name
-        - attributes
-      properties:
-        name:
-          type: string
-          description: The name of the crop.
-        attributes:
-          type: object
-          required:
-            - soilMoisture
-            - temperature
-            - humidity
-            - brightness
+            - light
           properties:
             soilMoisture:
               $ref: '#/components/schemas/Range'
-            temperature:
+            temp:
               $ref: '#/components/schemas/Range'
             humidity:
               $ref: '#/components/schemas/Range'
-            brightness:
+            light:
               $ref: '#/components/schemas/Range'
-    CropValue:
-      type: object
-      required:
-        - name
-        - attributes
-      properties:
-        name:
-          type: string
-          description: The name of the crop.
-        attributes:
-          type: object
-          required:
-            - soilMoisture
-            - temperature
-            - humidity
-            - brightness
-          properties:
-            soilMoisture:
-              $ref: '#/components/schemas/Value'
-            temperature:
-              $ref: '#/components/schemas/Value'
-            humidity:
-              $ref: '#/components/schemas/Value'
-            brightness:
-              $ref: '#/components/schemas/Value'
     Range:
       type: object
       required:
@@ -327,29 +535,13 @@ components:
         value:
           type: number
           format: float
-    RangeStatusValue:
+    StatusValue:
       type: object
       required:
-        - range
         - status
         - value
       properties:
-        range:
-          $ref: '#/components/schemas/Range/properties/range'
         status:
           $ref: '#/components/schemas/Status/properties/status'
         value:
           $ref: '#/components/schemas/Value/properties/value'
-    Devices:
-      type: object
-      required:
-        - heater
-        - lamp
-        - sprinkler
-      properties:
-        heater:
-          type: boolean
-        lamp:
-          type: boolean
-        sprinkler:
-          type: boolean
