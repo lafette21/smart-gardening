@@ -26,6 +26,7 @@
 
 #define TIME_BETWEEN_MEASUREMENTS_SEC 1 // seconds !!! only integer !!!
 #define TIME_BETWEEN_MEASUREMENTS_NSEC 0 // nanoseconds !!! only integer !!!
+
 #define TIME_BEFORE_FIRST_MEASUREMENT_SEC 1 // seconds !!! only integer !!!
 #define TIME_BEFORE_FIRST_MEASUREMENT_NSEC 0 // nanoseconds !!! only integer !!!
 #define ID_CHARACTER_LENGTH 36 // without terminating null
